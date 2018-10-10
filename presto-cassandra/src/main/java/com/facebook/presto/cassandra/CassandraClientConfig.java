@@ -70,6 +70,7 @@ public class CassandraClientConfig
     private int speculativeExecutionLimit = 1;
     private Duration speculativeExecutionDelay = new Duration(500, MILLISECONDS);
     private ProtocolVersion protocolVersion = ProtocolVersion.V3;
+    private boolean skipPartitionCheck;
 
     @NotNull
     @Size(min = 1)
@@ -405,6 +406,18 @@ public class CassandraClientConfig
     public CassandraClientConfig setProtocolVersion(ProtocolVersion version)
     {
         this.protocolVersion = version;
+        return this;
+    }
+
+    public boolean isSkipPartitionCheck()
+    {
+        return skipPartitionCheck;
+    }
+
+    @Config("cassandra.skip-partition-check")
+    public CassandraClientConfig setSkipPartitionCheck(boolean skipPartitionCheck)
+    {
+        this.skipPartitionCheck = skipPartitionCheck;
         return this;
     }
 }

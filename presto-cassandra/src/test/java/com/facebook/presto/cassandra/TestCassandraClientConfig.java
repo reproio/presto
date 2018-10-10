@@ -59,7 +59,8 @@ public class TestCassandraClientConfig
                 .setNoHostAvailableRetryTimeout(new Duration(1, MINUTES))
                 .setSpeculativeExecutionLimit(1)
                 .setSpeculativeExecutionDelay(new Duration(500, MILLISECONDS))
-                .setProtocolVersion(V3));
+                .setProtocolVersion(V3)
+                .setSkipPartitionCheck(false));
     }
 
     @Test
@@ -92,6 +93,7 @@ public class TestCassandraClientConfig
                 .put("cassandra.speculative-execution.limit", "10")
                 .put("cassandra.speculative-execution.delay", "101s")
                 .put("cassandra.protocol-version", "V2")
+                .put("cassandra.skip-partition-check", "true")
                 .build();
 
         CassandraClientConfig expected = new CassandraClientConfig()
@@ -120,7 +122,8 @@ public class TestCassandraClientConfig
                 .setNoHostAvailableRetryTimeout(new Duration(3, MINUTES))
                 .setSpeculativeExecutionLimit(10)
                 .setSpeculativeExecutionDelay(new Duration(101, SECONDS))
-                .setProtocolVersion(V2);
+                .setProtocolVersion(V2)
+                .setSkipPartitionCheck(true);
 
         ConfigAssertions.assertFullMapping(properties, expected);
     }
