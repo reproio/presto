@@ -66,6 +66,7 @@ public class CassandraClientConfig
     private Duration noHostAvailableRetryTimeout = new Duration(1, MINUTES);
     private int speculativeExecutionLimit = 1;
     private Duration speculativeExecutionDelay = new Duration(500, MILLISECONDS);
+    private boolean skipPartitionCheck;
 
     @NotNull
     @Size(min = 1)
@@ -377,6 +378,18 @@ public class CassandraClientConfig
     public CassandraClientConfig setSpeculativeExecutionDelay(Duration speculativeExecutionDelay)
     {
         this.speculativeExecutionDelay = speculativeExecutionDelay;
+        return this;
+    }
+
+    public boolean isSkipPartitionCheck()
+    {
+        return skipPartitionCheck;
+    }
+
+    @Config("cassandra.skip-partition-check")
+    public CassandraClientConfig setSkipPartitionCheck(boolean skipPartitionCheck)
+    {
+        this.skipPartitionCheck = skipPartitionCheck;
         return this;
     }
 }
