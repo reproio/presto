@@ -55,7 +55,8 @@ public class TestCassandraClientConfig
                 .setWhiteListAddresses("")
                 .setNoHostAvailableRetryTimeout(new Duration(1, MINUTES))
                 .setSpeculativeExecutionLimit(1)
-                .setSpeculativeExecutionDelay(new Duration(500, MILLISECONDS)));
+                .setSpeculativeExecutionDelay(new Duration(500, MILLISECONDS))
+                .setSkipPartitionCheck(false));
     }
 
     @Test
@@ -86,6 +87,7 @@ public class TestCassandraClientConfig
                 .put("cassandra.no-host-available-retry-timeout", "3m")
                 .put("cassandra.speculative-execution.limit", "10")
                 .put("cassandra.speculative-execution.delay", "101s")
+                .put("cassandra.skip-partition-check", "true")
                 .build();
 
         CassandraClientConfig expected = new CassandraClientConfig()
@@ -112,7 +114,8 @@ public class TestCassandraClientConfig
                 .setWhiteListAddresses("host1")
                 .setNoHostAvailableRetryTimeout(new Duration(3, MINUTES))
                 .setSpeculativeExecutionLimit(10)
-                .setSpeculativeExecutionDelay(new Duration(101, SECONDS));
+                .setSpeculativeExecutionDelay(new Duration(101, SECONDS))
+                .setSkipPartitionCheck(true);
 
         ConfigAssertions.assertFullMapping(properties, expected);
     }

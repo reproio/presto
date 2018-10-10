@@ -57,6 +57,7 @@ public final class EmbeddedCassandra
     private static final Duration REFRESH_SIZE_ESTIMATES_TIMEOUT = new Duration(1, MINUTES);
 
     private static CassandraSession session;
+    private static ReopeningCluster cluster;
     private static boolean initialized;
 
     private EmbeddedCassandra() {}
@@ -89,7 +90,8 @@ public final class EmbeddedCassandra
                 "EmbeddedCassandra",
                 JsonCodec.listJsonCodec(ExtraColumnMetadata.class),
                 cluster,
-                new Duration(1, MINUTES));
+                new Duration(1, MINUTES),
+                false);
 
         try {
             checkConnectivity(session);
@@ -101,6 +103,7 @@ public final class EmbeddedCassandra
         }
 
         EmbeddedCassandra.session = session;
+        EmbeddedCassandra.cluster = cluster;
         initialized = true;
     }
 
@@ -139,6 +142,12 @@ public final class EmbeddedCassandra
     {
         checkIsInitialized();
         return PORT;
+    }
+
+    public static synchronized ReopeningCluster getCluster()
+    {
+        checkIsInitialized();
+        return cluster;
     }
 
     private static void checkIsInitialized()
