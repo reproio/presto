@@ -315,6 +315,22 @@ public enum CassandraType
         }
     }
 
+    public static String getColumnValueForCql(Object object, CassandraType cassandraType)
+    {
+        switch (cassandraType) {
+            case ASCII:
+            case TEXT:
+            case VARCHAR:
+                return quoteStringLiteral(((Slice) object).toStringUtf8());
+            case INT:
+            case BIGINT:
+                return object.toString();
+            default:
+                throw new IllegalStateException("Handling of type " + cassandraType
+                        + " is not implemented");
+        }
+    }
+
     // TODO unify with getColumnValueForCql
     public String toCqlLiteral(Object prestoNativeValue)
     {

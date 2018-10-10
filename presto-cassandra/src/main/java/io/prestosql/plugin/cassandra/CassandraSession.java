@@ -43,6 +43,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.airlift.json.JsonCodec;
 import io.airlift.log.Logger;
+import io.airlift.slice.Slice;
 import io.airlift.units.Duration;
 import io.prestosql.plugin.cassandra.util.CassandraCqlUtils;
 import io.prestosql.spi.PrestoException;
@@ -78,6 +79,7 @@ import static io.prestosql.plugin.cassandra.CassandraType.toCassandraType;
 import static io.prestosql.plugin.cassandra.util.CassandraCqlUtils.selectDistinctFrom;
 import static io.prestosql.plugin.cassandra.util.CassandraCqlUtils.validSchemaName;
 import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static java.lang.Math.toIntExact;
 import static java.lang.String.format;
 import static java.util.Comparator.comparing;
 import static java.util.Locale.ENGLISH;
@@ -97,12 +99,14 @@ public class CassandraSession
     private final Cluster cluster;
     private final Supplier<Session> session;
     private final Duration noHostAvailableRetryTimeout;
+    private final boolean skipPartitionCheck;
 
-    public CassandraSession(JsonCodec<List<ExtraColumnMetadata>> extraColumnMetadataCodec, Cluster cluster, Duration noHostAvailableRetryTimeout)
+    public CassandraSession(JsonCodec<List<ExtraColumnMetadata>> extraColumnMetadataCodec, Cluster cluster, Duration noHostAvailableRetryTimeout, boolean skipPartitionCheck)
     {
         this.extraColumnMetadataCodec = requireNonNull(extraColumnMetadataCodec, "extraColumnMetadataCodec is null");
         this.cluster = requireNonNull(cluster, "cluster is null");
         this.noHostAvailableRetryTimeout = requireNonNull(noHostAvailableRetryTimeout, "noHostAvailableRetryTimeout is null");
+        this.skipPartitionCheck = skipPartitionCheck;
         this.session = memoize(cluster::connect);
     }
 
@@ -359,6 +363,10 @@ public class CassandraSession
      */
     public List<CassandraPartition> getPartitions(CassandraTable table, List<Set<Object>> filterPrefixes)
     {
+        if (skipPartitionCheck) {
+            return buildPartitionsFromFilterPrefixes(table, filterPrefixes);
+        }
+
         List<CassandraColumnHandle> partitionKeyColumns = table.getPartitionKeyColumns();
 
         if (filterPrefixes.size() != partitionKeyColumns.size()) {
@@ -413,6 +421,88 @@ public class CassandraSession
                 stringBuilder.append(CassandraCqlUtils.validColumnName(columnHandle.getName()));
                 stringBuilder.append(" = ");
                 stringBuilder.append(columnHandle.getCassandraType().getColumnValueForCql(row, i));
+            }
+            buffer.flip();
+            byte[] key = new byte[buffer.limit()];
+            buffer.get(key);
+            TupleDomain<ColumnHandle> tupleDomain = TupleDomain.fromFixedValues(map);
+            String partitionId = stringBuilder.toString();
+            if (uniquePartitionIds.add(partitionId)) {
+                partitions.add(new CassandraPartition(key, partitionId, tupleDomain, false));
+            }
+        }
+        return partitions.build();
+    }
+
+    private List<CassandraPartition> buildPartitionsFromFilterPrefixes(CassandraTable table, List<Set<Object>> filterPrefixes)
+    {
+        List<CassandraColumnHandle> partitionKeyColumns = table.getPartitionKeyColumns();
+
+        if (filterPrefixes.size() != partitionKeyColumns.size()) {
+            return ImmutableList.of(CassandraPartition.UNPARTITIONED);
+        }
+
+        ByteBuffer buffer = ByteBuffer.allocate(1000);
+        HashMap<ColumnHandle, NullableValue> map = new HashMap<>();
+        Set<String> uniquePartitionIds = new HashSet<>();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        boolean isComposite = partitionKeyColumns.size() > 1;
+
+        ImmutableList.Builder<CassandraPartition> partitions = ImmutableList.builder();
+        for (List<Object> values : Sets.cartesianProduct(filterPrefixes)) {
+            buffer.clear();
+            map.clear();
+            stringBuilder.setLength(0);
+            for (int i = 0; i < partitionKeyColumns.size(); i++) {
+                Object value = values.get(i);
+                CassandraColumnHandle columnHandle = partitionKeyColumns.get(i);
+                CassandraType cassandraType = columnHandle.getCassandraType();
+
+                switch (cassandraType) {
+                    case TEXT:
+                        Slice slice = (Slice) value;
+                        if (isComposite) {
+                            buffer.putShort((short) slice.length());
+                            buffer.put(slice.getBytes());
+                            buffer.put((byte) 0);
+                        }
+                        else {
+                            buffer.put(slice.getBytes());
+                        }
+                        break;
+                    case INT:
+                        int intValue = toIntExact((long) value);
+                        if (isComposite) {
+                            buffer.putShort((short) Integer.BYTES);
+                            buffer.putInt(intValue);
+                            buffer.put((byte) 0);
+                        }
+                        else {
+                            buffer.putInt(intValue);
+                        }
+                        break;
+                    case BIGINT:
+                        if (isComposite) {
+                            buffer.putShort((short) Long.BYTES);
+                            buffer.putLong((long) value);
+                            buffer.put((byte) 0);
+                        }
+                        else {
+                            buffer.putLong((long) value);
+                        }
+                        break;
+                    default:
+                        throw new IllegalStateException("Handling of type " + cassandraType + " is not implemented");
+                }
+
+                map.put(columnHandle, NullableValue.of(cassandraType.getPrestoType(), value));
+                if (i > 0) {
+                    stringBuilder.append(" AND ");
+                }
+                stringBuilder.append(CassandraCqlUtils.validColumnName(columnHandle.getName()));
+                stringBuilder.append(" = ");
+                stringBuilder.append(CassandraType.getColumnValueForCql(value, cassandraType));
             }
             buffer.flip();
             byte[] key = new byte[buffer.limit()];

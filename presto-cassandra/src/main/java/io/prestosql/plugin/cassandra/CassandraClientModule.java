@@ -166,7 +166,8 @@ public class CassandraClientModule
                     contactPoints.forEach(clusterBuilder::addContactPoint);
                     return clusterBuilder.build();
                 }),
-                config.getNoHostAvailableRetryTimeout());
+                config.getNoHostAvailableRetryTimeout(),
+                config.isSkipPartitionCheck());
     }
 
     private static Optional<SSLContext> buildSslContext(
