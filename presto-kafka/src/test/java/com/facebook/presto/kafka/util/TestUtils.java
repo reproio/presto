@@ -57,6 +57,11 @@ public final class TestUtils
 
     public static void installKafkaPlugin(EmbeddedKafka embeddedKafka, QueryRunner queryRunner, Map<SchemaTableName, KafkaTopicDescription> topicDescriptions)
     {
+        installKafkaPlugin(embeddedKafka, queryRunner, topicDescriptions, true);
+    }
+
+    public static void installKafkaPlugin(EmbeddedKafka embeddedKafka, QueryRunner queryRunner, Map<SchemaTableName, KafkaTopicDescription> topicDescriptions, boolean hideInternalColumns)
+    {
         KafkaPlugin kafkaPlugin = new KafkaPlugin();
         kafkaPlugin.setTableDescriptionSupplier(() -> topicDescriptions);
         queryRunner.installPlugin(kafkaPlugin);
@@ -65,6 +70,7 @@ public final class TestUtils
                 "kafka.nodes", embeddedKafka.getConnectString(),
                 "kafka.table-names", Joiner.on(",").join(topicDescriptions.keySet()),
                 "kafka.connect-timeout", "120s",
+                "kafka.hide-internal-columns", hideInternalColumns ? "true" : "false",
                 "kafka.default-schema", "default");
         queryRunner.createCatalog("kafka", "kafka", kafkaConfig);
     }
