@@ -47,7 +47,10 @@ public class TestKafkaIntegrationSmokeTestWithInternalColumns
     public void testPartitionIdPredicate()
     {
         assertQuery(
-                "SELECT _partition_id, min(_partition_offset), max(_partition_offset) FROM orders WHERE _partition_id BETWEEN 0 AND 1 AND _partition_offset >= 100 AND _partition_offset <= 1000 GROUP BY _partition_id ORDER BY _partition_id ",
+                "SELECT _partition_id, min(_partition_offset), max(_partition_offset) FROM orders WHERE _partition_id = 1 GROUP BY _partition_id",
+                "VALUES (1, 0, 7499)");
+        assertQuery(
+                "SELECT _partition_id, min(_partition_offset), max(_partition_offset) FROM orders WHERE _partition_id BETWEEN 0 AND 1 AND _partition_offset >= 100 AND _partition_offset <= 1000 GROUP BY _partition_id",
                 "VALUES (0, 100, 1000), (1, 100, 1000)");
     }
 
@@ -63,6 +66,9 @@ public class TestKafkaIntegrationSmokeTestWithInternalColumns
         assertQuery(
                 "SELECT _partition_id, min(_partition_offset), max(_partition_offset) FROM orders WHERE _partition_id = 1 AND _partition_offset BETWEEN 100 AND 1000 GROUP BY _partition_id",
                 "VALUES (1, 100, 1000)");
+        assertQuery(
+                "SELECT _partition_id, _partition_offset FROM orders WHERE (_partition_offset >= 100 AND _partition_offset < 102) OR (_partition_id = 1 AND _partition_offset > 7498) OR (_partition_offset BETWEEN 200 AND 201)",
+                "VALUES (0, 100), (1, 100), (0, 101), (1, 101), (0, 200), (1, 200), (0, 201), (1, 201), (1, 7499)");
     }
 
     @AfterClass(alwaysRun = true)

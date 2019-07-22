@@ -52,6 +52,7 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -140,49 +141,58 @@ public class KafkaSplitManager
 
                     long[] offsets = findAllOffsets(leaderConsumer, metadata.topic(), part.partitionId());
 
-                    long partitionOffsetMax = offsets[0];
-                    long partitionOffsetMin = offsets[offsets.length - 1];
-                    if (partitionOffsetDomain != null) {
-                        for (Range range : partitionOffsetDomain.getValues().getRanges().getOrderedRanges()) {
-                            if (range.isSingleValue()) {
-                                partitionOffsetMin = (long) range.getSingleValue();
-                                partitionOffsetMax = partitionOffsetMin;
-                            }
-                            else {
-                                if (!range.getLow().isLowerUnbounded()) {
-                                    switch (range.getLow().getBound()) {
-                                        case ABOVE:
-                                        case EXACTLY:
-                                            partitionOffsetMin = (long) range.getLow().getValue();
-                                            break;
-                                        case BELOW:
-                                            throw new IllegalArgumentException("Low marker should never use BELOW bound");
-                                        default:
-                                            throw new AssertionError("Unhandled bound: " + range.getLow().getBound());
-                                    }
-                                }
-                                if (!range.getHigh().isUpperUnbounded()) {
-                                    switch (range.getHigh().getBound()) {
-                                        case ABOVE:
-                                            throw new IllegalArgumentException("High marker should never use ABOVE bound");
-                                        case EXACTLY:
-                                            partitionOffsetMax = (long) range.getHigh().getValue() + 1;
-                                            break;
-                                        case BELOW:
-                                            partitionOffsetMax = (long) range.getHigh().getValue();
-                                            break;
-                                        default:
-                                            throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
-                                    }
-                                }
-                            }
-                        }
+                    ArrayList<Range> offsetRanges = new ArrayList<>();
+                    for (int i = offsets.length - 1; i > 0; i--) {
+                        offsetRanges.add(Range.range(BigintType.BIGINT, offsets[i], true, offsets[i - 1], false));
                     }
 
-                    for (int i = offsets.length - 1; i > 0; i--) {
-                        if (partitionOffsetMax <= offsets[i] || partitionOffsetMin > offsets[i - 1]) {
-                            continue;
+                    if (partitionOffsetDomain != null) {
+                        ArrayList<Range> intersectedRanges = new ArrayList<>();
+                        for (Range range : partitionOffsetDomain.getValues().getRanges().getOrderedRanges()) {
+                            for (Range offsetRange : offsetRanges) {
+                                if (range.getLow().compareTo(offsetRange.getHigh()) > 0) {
+                                    continue;
+                                }
+                                if (range.getHigh().compareTo(offsetRange.getLow()) < 0) {
+                                    continue;
+                                }
+
+                                intersectedRanges.add(range.intersect(offsetRange));
+                            }
                         }
+                        offsetRanges = intersectedRanges;
+                    }
+
+                    for (Range offsetRange : offsetRanges) {
+                        long start;
+                        long end;
+
+                        switch (offsetRange.getLow().getBound()) {
+                            case BELOW:
+                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                            case EXACTLY:
+                                start = (long) offsetRange.getLow().getValue();
+                                break;
+                            case ABOVE:
+                                start = (long) offsetRange.getLow().getValue() + 1;
+                                break;
+                            default:
+                                throw new AssertionError("Unhandled bound: " + offsetRange.getLow().getBound());
+                        }
+
+                        switch (offsetRange.getHigh().getBound()) {
+                            case BELOW:
+                                end = (long) offsetRange.getHigh().getValue();
+                                break;
+                            case EXACTLY:
+                                end = (long) offsetRange.getHigh().getValue() + 1;
+                                break;
+                            case ABOVE:
+                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                            default:
+                                throw new AssertionError("Unhandled bound: " + offsetRange.getHigh().getBound());
+                        }
+
                         KafkaSplit split = new KafkaSplit(
                                 connectorId,
                                 metadata.topic(),
@@ -191,8 +201,8 @@ public class KafkaSplitManager
                                 kafkaTableHandle.getKeyDataSchemaLocation().map(KafkaSplitManager::readSchema),
                                 kafkaTableHandle.getMessageDataSchemaLocation().map(KafkaSplitManager::readSchema),
                                 part.partitionId(),
-                                Long.max(partitionOffsetMin, offsets[i]),
-                                Long.min(partitionOffsetMax, offsets[i - 1]),
+                                start,
+                                end,
                                 partitionLeader);
                         splits.add(split);
                     }
