@@ -150,14 +150,9 @@ public class KafkaSplitManager
                         ArrayList<Range> intersectedRanges = new ArrayList<>();
                         for (Range range : partitionOffsetDomain.getValues().getRanges().getOrderedRanges()) {
                             for (Range offsetRange : offsetRanges) {
-                                if (range.getLow().compareTo(offsetRange.getHigh()) > 0) {
-                                    continue;
+                                if (range.overlaps(offsetRange)) {
+                                    intersectedRanges.add(range.intersect(offsetRange));
                                 }
-                                if (range.getHigh().compareTo(offsetRange.getLow()) < 0) {
-                                    continue;
-                                }
-
-                                intersectedRanges.add(range.intersect(offsetRange));
                             }
                         }
                         offsetRanges = intersectedRanges;
