@@ -13,6 +13,7 @@
  */
 package com.facebook.presto.kafka;
 
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.ConnectorSplit;
 import com.facebook.presto.spi.ConnectorSplitSource;
@@ -22,6 +23,10 @@ import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.PrestoException;
 import com.facebook.presto.spi.connector.ConnectorSplitManager;
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
+import com.facebook.presto.spi.predicate.Domain;
+import com.facebook.presto.spi.predicate.Range;
+import com.facebook.presto.spi.predicate.TupleDomain;
+import com.facebook.presto.spi.type.BigintType;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -47,7 +52,9 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -87,7 +94,9 @@ public class KafkaSplitManager
     @Override
     public ConnectorSplitSource getSplits(ConnectorTransactionHandle transaction, ConnectorSession session, ConnectorTableLayoutHandle layout, SplitSchedulingStrategy splitSchedulingStrategy)
     {
-        KafkaTableHandle kafkaTableHandle = convertLayout(layout).getTable();
+        KafkaTableLayoutHandle kafkaLayout = convertLayout(layout);
+        KafkaTableHandle kafkaTableHandle = kafkaLayout.getTable();
+        TupleDomain<ColumnHandle> tupleDomain = kafkaLayout.getTupleDomain();
         try {
             SimpleConsumer simpleConsumer = consumerManager.getConsumer(selectRandom(nodes));
 
@@ -96,8 +105,28 @@ public class KafkaSplitManager
 
             ImmutableList.Builder<ConnectorSplit> splits = ImmutableList.builder();
 
+            Domain partitionIdDomain = null;
+            Domain partitionOffsetDomain = null;
+
+            if (tupleDomain.getDomains().isPresent()) {
+                for (Map.Entry<ColumnHandle, Domain> entry : tupleDomain.getDomains().get().entrySet()) {
+                    KafkaColumnHandle columnHandle = (KafkaColumnHandle) entry.getKey();
+                    if (columnHandle.getName().equals("_partition_id")) {
+                        partitionIdDomain = entry.getValue();
+                    }
+                    if (columnHandle.getName().equals("_partition_offset")) {
+                        partitionOffsetDomain = entry.getValue();
+                    }
+                }
+            }
+
             for (TopicMetadata metadata : topicMetadataResponse.topicsMetadata()) {
                 for (PartitionMetadata part : metadata.partitionsMetadata()) {
+                    if (partitionIdDomain != null) {
+                        if (!partitionIdDomain.contains(Domain.singleValue(BigintType.BIGINT, (long) part.partitionId()))) {
+                            continue;
+                        }
+                    }
                     log.debug("Adding Partition %s/%s", metadata.topic(), part.partitionId());
 
                     Broker leader = part.leader();
@@ -112,7 +141,53 @@ public class KafkaSplitManager
 
                     long[] offsets = findAllOffsets(leaderConsumer, metadata.topic(), part.partitionId());
 
+                    ArrayList<Range> offsetRanges = new ArrayList<>();
                     for (int i = offsets.length - 1; i > 0; i--) {
+                        offsetRanges.add(Range.range(BigintType.BIGINT, offsets[i], true, offsets[i - 1], false));
+                    }
+
+                    if (partitionOffsetDomain != null) {
+                        ArrayList<Range> intersectedRanges = new ArrayList<>();
+                        for (Range range : partitionOffsetDomain.getValues().getRanges().getOrderedRanges()) {
+                            for (Range offsetRange : offsetRanges) {
+                                if (range.overlaps(offsetRange)) {
+                                    intersectedRanges.add(range.intersect(offsetRange));
+                                }
+                            }
+                        }
+                        offsetRanges = intersectedRanges;
+                    }
+
+                    for (Range offsetRange : offsetRanges) {
+                        long start;
+                        long end;
+
+                        switch (offsetRange.getLow().getBound()) {
+                            case BELOW:
+                                throw new IllegalArgumentException("Low marker should never use BELOW bound");
+                            case EXACTLY:
+                                start = (long) offsetRange.getLow().getValue();
+                                break;
+                            case ABOVE:
+                                start = (long) offsetRange.getLow().getValue() + 1;
+                                break;
+                            default:
+                                throw new AssertionError("Unhandled bound: " + offsetRange.getLow().getBound());
+                        }
+
+                        switch (offsetRange.getHigh().getBound()) {
+                            case BELOW:
+                                end = (long) offsetRange.getHigh().getValue();
+                                break;
+                            case EXACTLY:
+                                end = (long) offsetRange.getHigh().getValue() + 1;
+                                break;
+                            case ABOVE:
+                                throw new IllegalArgumentException("High marker should never use ABOVE bound");
+                            default:
+                                throw new AssertionError("Unhandled bound: " + offsetRange.getHigh().getBound());
+                        }
+
                         KafkaSplit split = new KafkaSplit(
                                 connectorId,
                                 metadata.topic(),
@@ -121,8 +196,8 @@ public class KafkaSplitManager
                                 kafkaTableHandle.getKeyDataSchemaLocation().map(KafkaSplitManager::readSchema),
                                 kafkaTableHandle.getMessageDataSchemaLocation().map(KafkaSplitManager::readSchema),
                                 part.partitionId(),
-                                offsets[i],
-                                offsets[i - 1],
+                                start,
+                                end,
                                 partitionLeader);
                         splits.add(split);
                     }

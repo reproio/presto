@@ -13,7 +13,9 @@
  */
 package com.facebook.presto.kafka;
 
+import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorTableLayoutHandle;
+import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -23,17 +25,27 @@ public class KafkaTableLayoutHandle
         implements ConnectorTableLayoutHandle
 {
     private final KafkaTableHandle table;
+    private final TupleDomain<ColumnHandle> tupleDomain;
 
     @JsonCreator
-    public KafkaTableLayoutHandle(@JsonProperty("table") KafkaTableHandle table)
+    public KafkaTableLayoutHandle(
+            @JsonProperty("table") KafkaTableHandle table,
+            @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> domain)
     {
         this.table = requireNonNull(table, "table is null");
+        this.tupleDomain = requireNonNull(domain, "table is null");
     }
 
     @JsonProperty
     public KafkaTableHandle getTable()
     {
         return table;
+    }
+
+    @JsonProperty
+    public TupleDomain<ColumnHandle> getTupleDomain()
+    {
+        return tupleDomain;
     }
 
     @Override

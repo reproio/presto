@@ -59,6 +59,12 @@ public final class KafkaQueryRunner
     public static DistributedQueryRunner createKafkaQueryRunner(EmbeddedKafka embeddedKafka, Iterable<TpchTable<?>> tables)
             throws Exception
     {
+        return createKafkaQueryRunner(embeddedKafka, tables, true);
+    }
+
+    public static DistributedQueryRunner createKafkaQueryRunner(EmbeddedKafka embeddedKafka, Iterable<TpchTable<?>> tables, boolean hideInternalColumns)
+            throws Exception
+    {
         DistributedQueryRunner queryRunner = null;
         try {
             queryRunner = new DistributedQueryRunner(createSession(), 2);
@@ -74,7 +80,7 @@ public final class KafkaQueryRunner
 
             Map<SchemaTableName, KafkaTopicDescription> topicDescriptions = createTpchTopicDescriptions(queryRunner.getCoordinator().getMetadata(), tables);
 
-            installKafkaPlugin(embeddedKafka, queryRunner, topicDescriptions);
+            installKafkaPlugin(embeddedKafka, queryRunner, topicDescriptions, hideInternalColumns);
 
             TestingPrestoClient prestoClient = queryRunner.getClient();
 
