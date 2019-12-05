@@ -16,6 +16,7 @@ package com.facebook.presto.cassandra;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.testng.annotations.Test;
 
@@ -23,15 +24,19 @@ import java.io.IOException;
 
 import static org.testng.Assert.assertTrue;
 
-public class TestCassandraType
+public class TestCassandraTypeWithTypeArguments
 {
     @Test
     public void testJsonMapEncoding()
     {
-        assertTrue(isValidJson(CassandraType.buildArrayValue(Lists.newArrayList("one", "two", "three\""), CassandraType.VARCHAR)));
-        assertTrue(isValidJson(CassandraType.buildArrayValue(Lists.newArrayList(1, 2, 3), CassandraType.INT)));
-        assertTrue(isValidJson(CassandraType.buildArrayValue(Lists.newArrayList(100000L, 200000000L, 3000000000L), CassandraType.BIGINT)));
-        assertTrue(isValidJson(CassandraType.buildArrayValue(Lists.newArrayList(1.0, 2.0, 3.0), CassandraType.DOUBLE)));
+        assertTrue(isValidJson(CassandraTypeWithTypeArguments.buildArrayValue(
+                Lists.newArrayList("one", "two", "three\""), new CassandraTypeWithTypeArguments(CassandraType.VARCHAR, ImmutableList.of()))));
+        assertTrue(isValidJson(CassandraTypeWithTypeArguments.buildArrayValue(
+                Lists.newArrayList(1, 2, 3), new CassandraTypeWithTypeArguments(CassandraType.INT, ImmutableList.of()))));
+        assertTrue(isValidJson(CassandraTypeWithTypeArguments.buildArrayValue(
+                Lists.newArrayList(100000L, 200000000L, 3000000000L), new CassandraTypeWithTypeArguments(CassandraType.BIGINT, ImmutableList.of()))));
+        assertTrue(isValidJson(CassandraTypeWithTypeArguments.buildArrayValue(
+                Lists.newArrayList(1.0, 2.0, 3.0), new CassandraTypeWithTypeArguments(CassandraType.DOUBLE, ImmutableList.of()))));
     }
 
     private static void continueWhileNotNull(JsonParser parser, JsonToken token)

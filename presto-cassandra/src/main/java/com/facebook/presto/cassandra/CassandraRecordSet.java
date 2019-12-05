@@ -29,7 +29,7 @@ public class CassandraRecordSet
 {
     private final CassandraSession cassandraSession;
     private final String cql;
-    private final List<FullCassandraType> cassandraTypes;
+    private final List<CassandraTypeWithTypeArguments> cassandraTypes;
     private final List<Type> columnTypes;
 
     public CassandraRecordSet(CassandraSession cassandraSession, String cql, List<CassandraColumnHandle> cassandraColumns)

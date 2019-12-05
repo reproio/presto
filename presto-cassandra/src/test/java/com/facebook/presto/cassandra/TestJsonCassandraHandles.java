@@ -39,7 +39,7 @@ public class TestJsonCassandraHandles
             .put("connectorId", "cassandra")
             .put("name", "column")
             .put("ordinalPosition", 42)
-            .put("cassandraType", "BIGINT")
+            .put("cassandraType", ImmutableMap.of("cassandraType", "BIGINT", "typeArguments", ImmutableList.of()))
             .put("partitionKey", false)
             .put("clusteringKey", true)
             .put("indexed", false)
@@ -50,8 +50,9 @@ public class TestJsonCassandraHandles
             .put("connectorId", "cassandra")
             .put("name", "column2")
             .put("ordinalPosition", 0)
-            .put("cassandraType", "SET")
-            .put("typeArguments", ImmutableList.of("INT"))
+            .put("cassandraType", ImmutableMap.of("cassandraType", "SET", "typeArguments", ImmutableList.of(
+                    ImmutableMap.of("cassandraType", "INT", "typeArguments", ImmutableList.of())
+            )))
             .put("partitionKey", false)
             .put("clusteringKey", false)
             .put("indexed", false)
@@ -89,7 +90,15 @@ public class TestJsonCassandraHandles
     public void testColumnHandleSerialize()
             throws Exception
     {
-        CassandraColumnHandle columnHandle = new CassandraColumnHandle("cassandra", "column", 42, CassandraType.BIGINT, null, false, true, false, false);
+        CassandraColumnHandle columnHandle = new CassandraColumnHandle(
+                "cassandra",
+                "column",
+                42,
+                new CassandraTypeWithTypeArguments(CassandraType.BIGINT, ImmutableList.of()),
+                false,
+                true,
+                false,
+                false);
 
         assertTrue(objectMapper.canSerialize(CassandraColumnHandle.class));
         String json = objectMapper.writeValueAsString(columnHandle);
@@ -104,8 +113,9 @@ public class TestJsonCassandraHandles
                 "cassandra",
                 "column2",
                 0,
-                CassandraType.SET,
-                ImmutableList.of(CassandraType.INT),
+                new CassandraTypeWithTypeArguments(
+                        CassandraType.SET, ImmutableList.of(
+                                new CassandraTypeWithTypeArguments(CassandraType.INT, ImmutableList.of()))),
                 false,
                 false,
                 false,
@@ -127,7 +137,7 @@ public class TestJsonCassandraHandles
         assertEquals(columnHandle.getName(), "column");
         assertEquals(columnHandle.getOrdinalPosition(), 42);
         assertEquals(columnHandle.getCassandraType(), CassandraType.BIGINT);
-        assertEquals(columnHandle.getTypeArguments(), null);
+        assertEquals(columnHandle.getTypeArguments(), ImmutableList.of());
         assertEquals(columnHandle.isPartitionKey(), false);
         assertEquals(columnHandle.isClusteringKey(), true);
     }
@@ -143,7 +153,8 @@ public class TestJsonCassandraHandles
         assertEquals(columnHandle.getName(), "column2");
         assertEquals(columnHandle.getOrdinalPosition(), 0);
         assertEquals(columnHandle.getCassandraType(), CassandraType.SET);
-        assertEquals(columnHandle.getTypeArguments(), ImmutableList.of(CassandraType.INT));
+        assertEquals(columnHandle.getTypeArguments().size(), 1);
+        assertEquals(columnHandle.getTypeArguments().get(0).getCassandraType(), CassandraType.INT);
         assertEquals(columnHandle.isPartitionKey(), false);
         assertEquals(columnHandle.isClusteringKey(), false);
     }
