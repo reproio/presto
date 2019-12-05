@@ -15,6 +15,7 @@ package com.facebook.presto.cassandra.util;
 
 import com.facebook.presto.cassandra.CassandraColumnHandle;
 import com.facebook.presto.cassandra.CassandraType;
+import com.facebook.presto.cassandra.CassandraTypeWithTypeArguments;
 import com.google.common.collect.ImmutableList;
 import org.testng.annotations.Test;
 
@@ -71,10 +72,11 @@ public class TestCassandraCqlUtils
     @Test
     public void testAppendSelectColumns()
     {
+        List<CassandraTypeWithTypeArguments> typeArguments = ImmutableList.of();
         List<CassandraColumnHandle> columns = ImmutableList.of(
-                new CassandraColumnHandle("", "foo", 0, CassandraType.VARCHAR, null, false, false, false, false),
-                new CassandraColumnHandle("", "bar", 0, CassandraType.VARCHAR, null, false, false, false, false),
-                new CassandraColumnHandle("", "table", 0, CassandraType.VARCHAR, null, false, false, false, false));
+                new CassandraColumnHandle("", "foo", 0, new CassandraTypeWithTypeArguments(CassandraType.VARCHAR, typeArguments), false, false, false, false),
+                new CassandraColumnHandle("", "bar", 0, new CassandraTypeWithTypeArguments(CassandraType.VARCHAR, typeArguments), false, false, false, false),
+                new CassandraColumnHandle("", "table", 0, new CassandraTypeWithTypeArguments(CassandraType.VARCHAR, typeArguments), false, false, false, false));
 
         StringBuilder sb = new StringBuilder();
         CassandraCqlUtils.appendSelectColumns(sb, columns);

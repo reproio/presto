@@ -19,6 +19,7 @@ import com.facebook.presto.cassandra.CassandraColumnHandle;
 import com.facebook.presto.cassandra.CassandraTable;
 import com.facebook.presto.cassandra.CassandraTableHandle;
 import com.facebook.presto.cassandra.CassandraType;
+import com.facebook.presto.cassandra.CassandraTypeWithTypeArguments;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.predicate.Domain;
 import com.facebook.presto.spi.predicate.TupleDomain;
@@ -42,10 +43,11 @@ public class TestCassandraClusteringPredicatesExtractor
     @BeforeTest
     void setUp()
     {
-        col1 = new CassandraColumnHandle("cassandra", "partitionKey1", 1, CassandraType.BIGINT, null, true, false, false, false);
-        col2 = new CassandraColumnHandle("cassandra", "clusteringKey1", 2, CassandraType.BIGINT, null, false, true, false, false);
-        col3 = new CassandraColumnHandle("cassandra", "clusteringKey2", 3, CassandraType.BIGINT, null, false, true, false, false);
-        col4 = new CassandraColumnHandle("cassandra", "clusteringKe3", 4, CassandraType.BIGINT, null, false, true, false, false);
+        CassandraTypeWithTypeArguments bigintType = new CassandraTypeWithTypeArguments(CassandraType.BIGINT, ImmutableList.of());
+        col1 = new CassandraColumnHandle("cassandra", "partitionKey1", 1, bigintType, true, false, false, false);
+        col2 = new CassandraColumnHandle("cassandra", "clusteringKey1", 2, bigintType, false, true, false, false);
+        col3 = new CassandraColumnHandle("cassandra", "clusteringKey2", 3, bigintType, false, true, false, false);
+        col4 = new CassandraColumnHandle("cassandra", "clusteringKe3", 4, bigintType, false, true, false, false);
 
         cassandraTable = new CassandraTable(
                 new CassandraTableHandle("cassandra", "test", "records"), ImmutableList.of(col1, col2, col3, col4));

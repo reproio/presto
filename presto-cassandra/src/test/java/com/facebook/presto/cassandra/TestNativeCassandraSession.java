@@ -131,8 +131,9 @@ public class TestNativeCassandraSession
             }
         }
 
-        CassandraColumnHandle col1 = new CassandraColumnHandle("cassandra", "partition_key1", 1, CassandraType.BIGINT, null, true, false, false, false);
-        CassandraColumnHandle col2 = new CassandraColumnHandle("cassandra", "clustering_key1", 2, CassandraType.BIGINT, null, false, true, false, false);
+        CassandraTypeWithTypeArguments bigintType = new CassandraTypeWithTypeArguments(CassandraType.BIGINT, ImmutableList.of());
+        CassandraColumnHandle col1 = new CassandraColumnHandle("cassandra", "partition_key1", 1, bigintType, true, false, false, false);
+        CassandraColumnHandle col2 = new CassandraColumnHandle("cassandra", "clustering_key1", 2, bigintType, false, true, false, false);
         return new CassandraTable(new CassandraTableHandle("cassandra", KEYSPACE, tableName), ImmutableList.of(col1, col2));
     }
 
@@ -156,9 +157,11 @@ public class TestNativeCassandraSession
             }
         }
 
-        CassandraColumnHandle col1 = new CassandraColumnHandle("cassandra", "partition_key1", 1, CassandraType.BIGINT, null, true, false, false, false);
-        CassandraColumnHandle col2 = new CassandraColumnHandle("cassandra", "partition_key2", 2, CassandraType.TEXT, null, true, false, false, false);
-        CassandraColumnHandle col3 = new CassandraColumnHandle("cassandra", "clustering_key1", 3, CassandraType.BIGINT, null, false, true, false, false);
+        CassandraTypeWithTypeArguments bigintType = new CassandraTypeWithTypeArguments(CassandraType.BIGINT, ImmutableList.of());
+        CassandraTypeWithTypeArguments textType = new CassandraTypeWithTypeArguments(CassandraType.TEXT, ImmutableList.of());
+        CassandraColumnHandle col1 = new CassandraColumnHandle("cassandra", "partition_key1", 1, bigintType, true, false, false, false);
+        CassandraColumnHandle col2 = new CassandraColumnHandle("cassandra", "partition_key2", 2, textType, true, false, false, false);
+        CassandraColumnHandle col3 = new CassandraColumnHandle("cassandra", "clustering_key1", 3, bigintType, false, true, false, false);
         return new CassandraTable(new CassandraTableHandle("cassandra", KEYSPACE, tableName), ImmutableList.of(col1, col2, col3));
     }
 }

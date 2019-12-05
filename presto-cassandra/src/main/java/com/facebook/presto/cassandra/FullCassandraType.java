@@ -19,5 +19,5 @@ public interface FullCassandraType
 {
     CassandraType getCassandraType();
 
-    List<CassandraType> getTypeArguments();
+    List<CassandraTypeWithTypeArguments> getTypeArguments();
 }

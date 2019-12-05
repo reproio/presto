@@ -164,6 +164,7 @@ public class CassandraTestingUtils
                 " typelist list<text>, " +
                 " typemap map<int, bigint>, " +
                 " typeset set<boolean>, " +
+                " typenestedset set<frozen<list<boolean>>>, " +
                 ")");
         insertTestData(session, table, date, rowsCount);
     }
@@ -191,6 +192,7 @@ public class CassandraTestingUtils
                 " typelist frozen <list<text>>, " +
                 " typemap frozen <map<int, bigint>>, " +
                 " typeset frozen <set<boolean>>, " +
+                " typenestedset set<frozen<list<boolean>>>, " +
                 " PRIMARY KEY ((" +
                 "   key, " +
                 "   typeuuid, " +
@@ -241,7 +243,8 @@ public class CassandraTestingUtils
                     .value("typetimeuuid", UUID.fromString(String.format("d2177dd0-eaa2-11de-a572-001b779c76e%d", rowNumber)))
                     .value("typelist", ImmutableList.of("list-value-1" + rowNumber, "list-value-2" + rowNumber))
                     .value("typemap", ImmutableMap.of(rowNumber, rowNumber + 1L, rowNumber + 2, rowNumber + 3L))
-                    .value("typeset", ImmutableSet.of(false, true));
+                    .value("typeset", ImmutableSet.of(false, true))
+                    .value("typenestedset", ImmutableSet.of(ImmutableList.of(false, true)));
 
             session.execute(insert);
         }

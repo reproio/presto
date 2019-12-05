@@ -16,7 +16,6 @@ package com.facebook.presto.cassandra;
 import com.datastax.driver.core.AbstractTableMetadata;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Host;
 import com.datastax.driver.core.IndexMetadata;
 import com.datastax.driver.core.KeyspaceMetadata;
@@ -325,21 +324,7 @@ public class NativeCassandraSession
 
     private CassandraColumnHandle buildColumnHandle(AbstractTableMetadata tableMetadata, ColumnMetadata columnMeta, boolean partitionKey, boolean clusteringKey, int ordinalPosition, boolean hidden)
     {
-        CassandraType cassandraType = CassandraType.getCassandraType(columnMeta.getType().getName());
-        List<CassandraType> typeArguments = null;
-        if (cassandraType != null && cassandraType.getTypeArgumentSize() > 0) {
-            List<DataType> typeArgs = columnMeta.getType().getTypeArguments();
-            switch (cassandraType.getTypeArgumentSize()) {
-                case 1:
-                    typeArguments = ImmutableList.of(CassandraType.getCassandraType(typeArgs.get(0).getName()));
-                    break;
-                case 2:
-                    typeArguments = ImmutableList.of(CassandraType.getCassandraType(typeArgs.get(0).getName()), CassandraType.getCassandraType(typeArgs.get(1).getName()));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Invalid type arguments: " + typeArgs);
-            }
-        }
+        CassandraTypeWithTypeArguments cassandraTypeWithTypeArguments = CassandraTypeWithTypeArguments.getCassandraTypeWithTypeArguments(columnMeta.getType());
         boolean indexed = false;
         SchemaTableName schemaTableName = new SchemaTableName(tableMetadata.getKeyspace().getName(), tableMetadata.getName());
         if (!isMaterializedView(schemaTableName)) {
@@ -351,7 +336,7 @@ public class NativeCassandraSession
                 }
             }
         }
-        return new CassandraColumnHandle(connectorId, columnMeta.getName(), ordinalPosition, cassandraType, typeArguments, partitionKey, clusteringKey, indexed, hidden);
+        return new CassandraColumnHandle(connectorId, columnMeta.getName(), ordinalPosition, cassandraTypeWithTypeArguments, partitionKey, clusteringKey, indexed, hidden);
     }
 
     @Override
@@ -407,7 +392,7 @@ public class NativeCassandraSession
                     buffer.put(component);
                 }
                 CassandraColumnHandle columnHandle = partitionKeyColumns.get(i);
-                NullableValue keyPart = CassandraType.getColumnValueForPartitionKey(row, i, columnHandle.getCassandraType(), columnHandle.getTypeArguments());
+                NullableValue keyPart = CassandraTypeWithTypeArguments.getColumnValueForPartitionKey(row, i, columnHandle.getCassandraTypeWithTypeArguments());
                 map.put(columnHandle, keyPart);
                 if (i > 0) {
                     stringBuilder.append(" AND ");

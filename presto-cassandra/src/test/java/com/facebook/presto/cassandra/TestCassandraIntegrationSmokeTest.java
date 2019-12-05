@@ -521,7 +521,8 @@ public class TestCassandraIntegrationSmokeTest
                 " typetimeuuid, " +
                 " typelist, " +
                 " typemap, " +
-                " typeset " +
+                " typeset, " +
+                " typenestedset " +
                 " FROM " + tableName;
 
         MaterializedResult result = execute(sql);
@@ -544,6 +545,7 @@ public class TestCassandraIntegrationSmokeTest
                 createUnboundedVarcharType(),
                 createUnboundedVarcharType(),
                 uuidType,
+                createUnboundedVarcharType(),
                 createUnboundedVarcharType(),
                 createUnboundedVarcharType(),
                 createUnboundedVarcharType()));
@@ -571,7 +573,8 @@ public class TestCassandraIntegrationSmokeTest
                     String.format("d2177dd0-eaa2-11de-a572-001b779c76e%d", rowNumber),
                     String.format("[\"list-value-1%1$d\",\"list-value-2%1$d\"]", rowNumber),
                     String.format("{%d:%d,%d:%d}", rowNumber, rowNumber + 1L, rowNumber + 2, rowNumber + 3L),
-                    "[false,true]"));
+                    "[false,true]",
+                    "[[false,true]]"));
         }
     }
 
