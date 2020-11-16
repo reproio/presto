@@ -1,8 +1,11 @@
 name: ci
 
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+      - 'repro-*'
+  pull_request:
 
 env:
   # maven.wagon.rto is in millis, defaults to 30m
