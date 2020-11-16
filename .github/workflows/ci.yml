@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - 'repro-*'
   pull_request:
 
 env:
